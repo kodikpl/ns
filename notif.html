@@ -9,77 +9,78 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+            background-color: #111827; /* Dark background */
+            color: #d1fa1f; /* Neon green text */
         }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
-    <div id="app" class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm">
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Notification Simulator</h1>
+    <div id="app" class="bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-sm border-2 border-lime-400">
+        <h1 class="text-3xl font-bold text-center text-lime-400 mb-6">Notification Simulator</h1>
         
         <div id="permission-section">
-            <button id="request-permission" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-300 ease-in-out">
+            <button id="request-permission" class="w-full bg-gray-700 text-lime-400 font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-gray-600 transition duration-300 ease-in-out">
                 Request Notification Permission
             </button>
-            <p id="permission-status" class="mt-4 text-center text-sm text-gray-600"></p>
+            <p id="permission-status" class="mt-4 text-center text-sm text-gray-400"></p>
         </div>
 
         <div id="main-content" class="hidden mt-6 space-y-6">
             <div class="space-y-4">
-                <h2 class="text-xl font-semibold text-gray-800">Single Notification</h2>
+                <h2 class="text-xl font-semibold text-lime-400">Single Notification</h2>
                 <div>
-                    <label for="notification-title" class="block text-sm font-medium text-gray-700">Title</label>
-                    <input type="text" id="notification-title" placeholder="e.g., New Message" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <label for="notification-title" class="block text-sm font-medium text-gray-400">Title</label>
+                    <input type="text" id="notification-title" placeholder="e.g., New Message" class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-900 text-lime-400 placeholder-gray-500 focus:outline-none focus:ring-lime-400 focus:border-lime-400 sm:text-sm">
                 </div>
                 <div>
-                    <label for="notification-message" class="block text-sm font-medium text-gray-700">Message</label>
-                    <input type="text" id="notification-message" placeholder="e.g., You have a new notification" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <label for="notification-message" class="block text-sm font-medium text-gray-400">Message</label>
+                    <input type="text" id="notification-message" placeholder="e.g., You have a new notification" class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-900 text-lime-400 placeholder-gray-500 focus:outline-none focus:ring-lime-400 focus:border-lime-400 sm:text-sm">
                 </div>
                 <div class="mt-4">
-                    <label for="notification-url" class="block text-sm font-medium text-gray-700">URL (Optional)</label>
-                    <input type="url" id="notification-url" placeholder="e.g., https://www.google.com" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <label for="notification-url" class="block text-sm font-medium text-gray-400">URL (Optional)</label>
+                    <input type="url" id="notification-url" placeholder="e.g., https://www.google.com" class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-900 text-lime-400 placeholder-gray-500 focus:outline-none focus:ring-lime-400 focus:border-lime-400 sm:text-sm">
                 </div>
                 <div class="mt-4">
-                    <label for="icon-upload" class="block text-sm font-medium text-gray-700">Custom Icon (Optional)</label>
-                    <input type="file" id="icon-upload" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <label for="icon-upload" class="block text-sm font-medium text-gray-400">Custom Icon (Optional)</label>
+                    <input type="file" id="icon-upload" accept="image/*" class="mt-1 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-lime-400 hover:file:bg-gray-600">
                 </div>
                 <div class="mt-4">
-                    <label for="image-upload" class="block text-sm font-medium text-gray-700">Custom Image (Optional)</label>
-                    <input type="file" id="image-upload" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <label for="image-upload" class="block text-sm font-medium text-gray-400">Custom Image (Optional)</label>
+                    <input type="file" id="image-upload" accept="image/*" class="mt-1 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-lime-400 hover:file:bg-gray-600">
                 </div>
                 <div class="mt-4 flex items-center justify-between">
                     <div class="flex-grow flex items-center">
-                        <input type="checkbox" id="autohide-checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                        <label for="autohide-checkbox" class="ml-2 block text-sm font-medium text-gray-700">Auto-hide after (ms)</label>
+                        <input type="checkbox" id="autohide-checkbox" class="h-4 w-4 text-lime-400 bg-gray-700 border-gray-600 rounded focus:ring-lime-400">
+                        <label for="autohide-checkbox" class="ml-2 block text-sm font-medium text-gray-400">Auto-hide after (ms)</label>
                     </div>
-                    <input type="number" id="autohide-duration" value="5000" min="1000" class="w-24 px-2 py-1 text-sm border border-gray-300 rounded-md">
+                    <input type="number" id="autohide-duration" value="5000" min="1000" class="w-24 px-2 py-1 text-sm border border-gray-600 rounded-md bg-gray-900 text-lime-400">
                 </div>
-                <button id="show-notification" class="w-full bg-green-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-green-700 transition duration-300 ease-in-out">
+                <button id="show-notification" class="w-full bg-gray-700 text-lime-400 font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-gray-600 transition duration-300 ease-in-out">
                     Show Notification
                 </button>
             </div>
 
-            <div class="h-px bg-gray-300 my-6"></div>
+            <div class="h-px bg-lime-400 my-6"></div>
 
             <div class="space-y-4">
-                <h2 class="text-xl font-semibold text-gray-800">Timed Notifications</h2>
+                <h2 class="text-xl font-semibold text-lime-400">Timed Notifications</h2>
                 <div>
-                    <label for="interval-input" class="block text-sm font-medium text-gray-700">Interval (in milliseconds)</label>
-                    <input type="number" id="interval-input" value="3000" min="500" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <label for="interval-input" class="block text-sm font-medium text-gray-400">Interval (in milliseconds)</label>
+                    <input type="number" id="interval-input" value="3000" min="500" class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-900 text-lime-400 focus:outline-none focus:ring-lime-400 focus:border-lime-400 sm:text-sm">
                 </div>
-                <button id="start-notifications" class="w-full bg-purple-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-purple-700 transition duration-300 ease-in-out">
+                <button id="start-notifications" class="w-full bg-gray-700 text-lime-400 font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-gray-600 transition duration-300 ease-in-out">
                     Start Timed Notifications
                 </button>
-                <button id="stop-notifications" class="w-full bg-red-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-red-700 transition duration-300 ease-in-out hidden">
+                <button id="stop-notifications" class="w-full bg-gray-700 text-lime-400 font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-gray-600 transition duration-300 ease-in-out hidden">
                     Stop Timed Notifications
                 </button>
             </div>
         </div>
 
-        <div id="message-box" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4">
-            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-                <p id="message-text" class="text-gray-700 text-center mb-4"></p>
-                <button id="close-message" class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition duration-300">OK</button>
+        <div id="message-box" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl max-w-sm w-full border-2 border-lime-400">
+                <p id="message-text" class="text-lime-400 text-center mb-4"></p>
+                <button id="close-message" class="w-full bg-gray-700 text-lime-400 font-semibold py-2 rounded-lg hover:bg-gray-600 transition duration-300">OK</button>
             </div>
         </div>
     </div>
