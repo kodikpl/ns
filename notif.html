@@ -24,18 +24,45 @@
             <p id="permission-status" class="mt-4 text-center text-sm text-gray-600"></p>
         </div>
 
-        <div id="notification-section" class="hidden mt-6 space-y-4">
-            <div>
-                <label for="notification-title" class="block text-sm font-medium text-gray-700">Title</label>
-                <input type="text" id="notification-title" placeholder="e.g., New Message" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+        <div id="main-content" class="hidden mt-6 space-y-6">
+            <div class="space-y-4">
+                <h2 class="text-xl font-semibold text-gray-800">Single Notification</h2>
+                <div>
+                    <label for="notification-title" class="block text-sm font-medium text-gray-700">Title</label>
+                    <input type="text" id="notification-title" placeholder="e.g., New Message" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div>
+                    <label for="notification-message" class="block text-sm font-medium text-gray-700">Message</label>
+                    <input type="text" id="notification-message" placeholder="e.g., You have a new notification" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div class="mt-4">
+                    <label for="icon-upload" class="block text-sm font-medium text-gray-700">Custom Icon (Optional)</label>
+                    <input type="file" id="icon-upload" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+                <div class="mt-4">
+                    <label for="image-upload" class="block text-sm font-medium text-gray-700">Custom Image (Optional)</label>
+                    <input type="file" id="image-upload" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+                <button id="show-notification" class="w-full bg-green-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-green-700 transition duration-300 ease-in-out">
+                    Show Notification
+                </button>
             </div>
-            <div>
-                <label for="notification-message" class="block text-sm font-medium text-gray-700">Message</label>
-                <input type="text" id="notification-message" placeholder="e.g., You have a new notification" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+
+            <div class="h-px bg-gray-300 my-6"></div>
+
+            <div class="space-y-4">
+                <h2 class="text-xl font-semibold text-gray-800">Timed Notifications</h2>
+                <div>
+                    <label for="interval-input" class="block text-sm font-medium text-gray-700">Interval (in milliseconds)</label>
+                    <input type="number" id="interval-input" value="3000" min="500" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <button id="start-notifications" class="w-full bg-purple-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-purple-700 transition duration-300 ease-in-out">
+                    Start Timed Notifications
+                </button>
+                <button id="stop-notifications" class="w-full bg-red-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-red-700 transition duration-300 ease-in-out hidden">
+                    Stop Timed Notifications
+                </button>
             </div>
-            <button id="show-notification" class="w-full bg-green-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-green-700 transition duration-300 ease-in-out">
-                Show Notification
-            </button>
         </div>
 
         <div id="message-box" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4">
@@ -50,14 +77,23 @@
         document.addEventListener('DOMContentLoaded', () => {
             const permissionButton = document.getElementById('request-permission');
             const showNotificationButton = document.getElementById('show-notification');
+            const startButton = document.getElementById('start-notifications');
+            const stopButton = document.getElementById('stop-notifications');
             const permissionStatus = document.getElementById('permission-status');
             const notificationTitleInput = document.getElementById('notification-title');
             const notificationMessageInput = document.getElementById('notification-message');
+            const iconUploadInput = document.getElementById('icon-upload');
+            const imageUploadInput = document.getElementById('image-upload');
+            const intervalInput = document.getElementById('interval-input');
             const permissionSection = document.getElementById('permission-section');
-            const notificationSection = document.getElementById('notification-section');
+            const mainContentSection = document.getElementById('main-content');
             const messageBox = document.getElementById('message-box');
             const messageText = document.getElementById('message-text');
             const closeMessageButton = document.getElementById('close-message');
+
+            let notificationIntervalId = null;
+            let customIconUrl = '';
+            let customImageUrl = '';
 
             function showMessage(message) {
                 messageText.textContent = message;
@@ -71,11 +107,33 @@
             function updateUIForPermission() {
                 if (Notification.permission === 'granted') {
                     permissionSection.classList.add('hidden');
-                    notificationSection.classList.remove('hidden');
+                    mainContentSection.classList.remove('hidden');
                 } else {
                     permissionSection.classList.remove('hidden');
-                    notificationSection.classList.add('hidden');
+                    mainContentSection.classList.add('hidden');
                     permissionStatus.textContent = `Permission status: ${Notification.permission}`;
+                }
+            }
+
+            function createNotification() {
+                if (Notification.permission === 'granted') {
+                    const title = notificationTitleInput.value || "Default Title";
+                    const message = notificationMessageInput.value || "Hello, this is a test notification!";
+                    
+                    const options = {
+                        body: message,
+                        icon: customIconUrl || 'https://placehold.co/128x128/000000/FFFFFF?text=🔔'
+                    };
+
+                    if (customImageUrl) {
+                        options.image = customImageUrl;
+                    }
+
+                    const notification = new Notification(title, options);
+
+                    notification.addEventListener('click', () => {
+                        console.log('Notification was clicked!');
+                    });
                 }
             }
 
@@ -97,22 +155,64 @@
 
             showNotificationButton.addEventListener('click', () => {
                 if (Notification.permission === 'granted') {
-                    const title = notificationTitleInput.value || "Default Title";
-                    const message = notificationMessageInput.value || "Hello, this is a test notification!";
-                    
-                    const notification = new Notification(title, {
-                        body: message,
-                        icon: 'https://placehold.co/128x128/000000/FFFFFF?text=🔔'
-                    });
-
-                    // You can add event listeners to the notification object if you want
-                    notification.addEventListener('click', () => {
-                        console.log('Notification was clicked!');
-                    });
+                    createNotification();
                 } else if (Notification.permission === 'denied') {
                     showMessage("Notification permission is denied. Please enable it in your browser settings.");
                 } else {
                     showMessage("You need to grant permission first.");
+                }
+            });
+
+            startButton.addEventListener('click', () => {
+                if (Notification.permission === 'granted') {
+                    const interval = parseInt(intervalInput.value, 10);
+                    if (isNaN(interval) || interval < 500) {
+                        showMessage("Please enter a valid interval (at least 500ms).");
+                        return;
+                    }
+
+                    notificationIntervalId = setInterval(createNotification, interval);
+                    startButton.classList.add('hidden');
+                    stopButton.classList.remove('hidden');
+                    console.log(`Starting notifications every ${interval}ms.`);
+                } else if (Notification.permission === 'denied') {
+                    showMessage("Notification permission is denied. Please enable it in your browser settings.");
+                } else {
+                    showMessage("You need to grant permission first.");
+                }
+            });
+
+            stopButton.addEventListener('click', () => {
+                clearInterval(notificationIntervalId);
+                startButton.classList.remove('hidden');
+                stopButton.classList.add('hidden');
+                console.log("Stopped timed notifications.");
+            });
+
+            // Handle image uploads
+            iconUploadInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        customIconUrl = reader.result;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    customIconUrl = '';
+                }
+            });
+
+            imageUploadInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        customImageUrl = reader.result;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    customImageUrl = '';
                 }
             });
         });
