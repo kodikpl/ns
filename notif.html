@@ -36,12 +36,23 @@
                     <input type="text" id="notification-message" placeholder="e.g., You have a new notification" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
                 <div class="mt-4">
+                    <label for="notification-url" class="block text-sm font-medium text-gray-700">URL (Optional)</label>
+                    <input type="url" id="notification-url" placeholder="e.g., https://www.google.com" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div class="mt-4">
                     <label for="icon-upload" class="block text-sm font-medium text-gray-700">Custom Icon (Optional)</label>
                     <input type="file" id="icon-upload" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                 </div>
                 <div class="mt-4">
                     <label for="image-upload" class="block text-sm font-medium text-gray-700">Custom Image (Optional)</label>
                     <input type="file" id="image-upload" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+                <div class="mt-4 flex items-center justify-between">
+                    <div class="flex-grow flex items-center">
+                        <input type="checkbox" id="autohide-checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <label for="autohide-checkbox" class="ml-2 block text-sm font-medium text-gray-700">Auto-hide after (ms)</label>
+                    </div>
+                    <input type="number" id="autohide-duration" value="5000" min="1000" class="w-24 px-2 py-1 text-sm border border-gray-300 rounded-md">
                 </div>
                 <button id="show-notification" class="w-full bg-green-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-green-700 transition duration-300 ease-in-out">
                     Show Notification
@@ -82,9 +93,12 @@
             const permissionStatus = document.getElementById('permission-status');
             const notificationTitleInput = document.getElementById('notification-title');
             const notificationMessageInput = document.getElementById('notification-message');
+            const notificationUrlInput = document.getElementById('notification-url');
             const iconUploadInput = document.getElementById('icon-upload');
             const imageUploadInput = document.getElementById('image-upload');
             const intervalInput = document.getElementById('interval-input');
+            const autohideCheckbox = document.getElementById('autohide-checkbox');
+            const autohideDurationInput = document.getElementById('autohide-duration');
             const permissionSection = document.getElementById('permission-section');
             const mainContentSection = document.getElementById('main-content');
             const messageBox = document.getElementById('message-box');
@@ -119,6 +133,7 @@
                 if (Notification.permission === 'granted') {
                     const title = notificationTitleInput.value || "Default Title";
                     const message = notificationMessageInput.value || "Hello, this is a test notification!";
+                    const url = notificationUrlInput.value;
                     
                     const options = {
                         body: message,
@@ -131,9 +146,27 @@
 
                     const notification = new Notification(title, options);
 
-                    notification.addEventListener('click', () => {
-                        console.log('Notification was clicked!');
-                    });
+                    // Add click handler for the URL
+                    if (url) {
+                        notification.onclick = () => {
+                            window.open(url, '_blank');
+                            notification.close();
+                        };
+                    } else {
+                        notification.onclick = () => {
+                            console.log('Notification was clicked!');
+                        };
+                    }
+
+                    // Auto-hide functionality
+                    if (autohideCheckbox.checked) {
+                        const duration = parseInt(autohideDurationInput.value, 10);
+                        if (!isNaN(duration) && duration > 0) {
+                            setTimeout(() => {
+                                notification.close();
+                            }, duration);
+                        }
+                    }
                 }
             }
 
