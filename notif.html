@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div id="app" class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Notification Simulator</h1>
+        
+        <div id="permission-section">
+            <button id="request-permission" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-300 ease-in-out">
+                Request Notification Permission
+            </button>
+            <p id="permission-status" class="mt-4 text-center text-sm text-gray-600"></p>
+        </div>
+
+        <div id="notification-section" class="hidden mt-6 space-y-4">
+            <div>
+                <label for="notification-title" class="block text-sm font-medium text-gray-700">Title</label>
+                <input type="text" id="notification-title" placeholder="e.g., New Message" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            <div>
+                <label for="notification-message" class="block text-sm font-medium text-gray-700">Message</label>
+                <input type="text" id="notification-message" placeholder="e.g., You have a new notification" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            <button id="show-notification" class="w-full bg-green-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-green-700 transition duration-300 ease-in-out">
+                Show Notification
+            </button>
+        </div>
+
+        <div id="message-box" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+                <p id="message-text" class="text-gray-700 text-center mb-4"></p>
+                <button id="close-message" class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition duration-300">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const permissionButton = document.getElementById('request-permission');
+            const showNotificationButton = document.getElementById('show-notification');
+            const permissionStatus = document.getElementById('permission-status');
+            const notificationTitleInput = document.getElementById('notification-title');
+            const notificationMessageInput = document.getElementById('notification-message');
+            const permissionSection = document.getElementById('permission-section');
+            const notificationSection = document.getElementById('notification-section');
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            const closeMessageButton = document.getElementById('close-message');
+
+            function showMessage(message) {
+                messageText.textContent = message;
+                messageBox.classList.remove('hidden');
+            }
+
+            closeMessageButton.addEventListener('click', () => {
+                messageBox.classList.add('hidden');
+            });
+
+            function updateUIForPermission() {
+                if (Notification.permission === 'granted') {
+                    permissionSection.classList.add('hidden');
+                    notificationSection.classList.remove('hidden');
+                } else {
+                    permissionSection.classList.remove('hidden');
+                    notificationSection.classList.add('hidden');
+                    permissionStatus.textContent = `Permission status: ${Notification.permission}`;
+                }
+            }
+
+            // Check permission status on page load
+            if (!("Notification" in window)) {
+                showMessage("This browser does not support desktop notification.");
+            } else {
+                updateUIForPermission();
+            }
+
+            permissionButton.addEventListener('click', () => {
+                Notification.requestPermission().then(permission => {
+                    updateUIForPermission();
+                    if (permission !== 'granted') {
+                        showMessage("Notification permission was denied. You will not be able to send notifications.");
+                    }
+                });
+            });
+
+            showNotificationButton.addEventListener('click', () => {
+                if (Notification.permission === 'granted') {
+                    const title = notificationTitleInput.value || "Default Title";
+                    const message = notificationMessageInput.value || "Hello, this is a test notification!";
+                    
+                    const notification = new Notification(title, {
+                        body: message,
+                        icon: 'https://placehold.co/128x128/000000/FFFFFF?text=🔔'
+                    });
+
+                    // You can add event listeners to the notification object if you want
+                    notification.addEventListener('click', () => {
+                        console.log('Notification was clicked!');
+                    });
+                } else if (Notification.permission === 'denied') {
+                    showMessage("Notification permission is denied. Please enable it in your browser settings.");
+                } else {
+                    showMessage("You need to grant permission first.");
+                }
+            });
+        });
+    </script>
+</body>
+</html>
