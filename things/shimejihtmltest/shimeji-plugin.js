@@ -1,4 +1,3 @@
-// Self-contained Shimeji plugin (no mascot.json needed)
 (function() {
   const SHIMEJI_PATH = "//naplet.space/things/shimejiee%20-%20Tama%20Mod/img/Shimeji/";
 
@@ -39,7 +38,7 @@
     });
     document.body.appendChild(menu);
 
-    // --- Shimeji configuration (directly in plugin) ---
+    // --- Shimeji configuration ---
     const CONFIG = {
       name: "Squalo",
       license: "unknown",
@@ -79,9 +78,14 @@
       container.appendChild(div);
 
       shime.init(div, x, y);
+
+      // --- Invisible floor and walls ---
       shime.makeEnvironment([
-        { x:0, y:window.innerHeight-128, width:window.innerWidth, height:10 }
+        { x:0, y:window.innerHeight-128, width:window.innerWidth, height:10 }, // floor
+        { x:-100, y:0, width:100, height:window.innerHeight }, // left wall
+        { x:window.innerWidth, y:0, width:100, height:window.innerHeight } // right wall
       ]);
+
       shime.act("fall", 40);
       squalo = shime;
 
@@ -137,11 +141,15 @@
     // --- Init mascot ---
     createShimeji(window.innerWidth/2, window.innerHeight/2);
 
-    // --- Adjust floor on resize ---
+    // --- Adjust floor & walls on resize ---
     window.addEventListener("resize", ()=>{
       if(squalo && squalo.environment){
-        squalo.environment[0].y = window.innerHeight-128;
+        squalo.environment[0].y = window.innerHeight-128; // floor
         squalo.environment[0].width = window.innerWidth;
+
+        squalo.environment[1].height = window.innerHeight; // left wall
+        squalo.environment[2].x = window.innerWidth;       // right wall
+        squalo.environment[2].height = window.innerHeight;
       }
     });
   });
