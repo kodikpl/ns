@@ -79,15 +79,21 @@
 
       shime.init(div, x, y);
 
-      // --- Invisible boundaries (floor + walls) ---
-      shime.makeEnvironment([
-        { left: 0, top: window.innerHeight-128, right: window.innerWidth, bottom: window.innerHeight }, // floor
-        { left: -100, top: 0, right: 0, bottom: window.innerHeight }, // left wall
-        { left: window.innerWidth, top: 0, right: window.innerWidth+100, bottom: window.innerHeight }, // right wall
-        { left: 0, top: -100, right: window.innerWidth, bottom: 0 } // ceiling
-      ]);
+      // --- Full-screen invisible environment (floor + walls + ceiling) ---
+      function setEnvironment() {
+        const env = [{
+          left: 0,
+          top: 0,
+          right: window.innerWidth,
+          bottom: window.innerHeight,
+          height: window.innerHeight
+        }];
+        shime.makeEnvironment(env);
+      }
 
-      shime.act("fall", 40);
+      setEnvironment(); // initial environment
+
+      shime.act("fall", 40); // call fall after environment exists
       squalo = shime;
 
       // --- Dragging ---
@@ -123,6 +129,11 @@
         menu.style.left=e.pageX+"px";
         menu.style.top=e.pageY+"px";
       });
+
+      // --- Update environment on resize ---
+      window.addEventListener("resize", () => {
+        setEnvironment();
+      });
     }
 
     // --- Menu button actions ---
@@ -141,20 +152,5 @@
 
     // --- Init mascot ---
     createShimeji(window.innerWidth/2, window.innerHeight/2);
-
-    // --- Adjust boundaries on resize ---
-    window.addEventListener("resize", ()=>{
-      if(squalo && squalo.environment){
-        squalo.environment[0].top = window.innerHeight-128; // floor
-        squalo.environment[0].right = window.innerWidth;
-        squalo.environment[0].bottom = window.innerHeight;
-
-        squalo.environment[1].bottom = window.innerHeight; // left wall
-        squalo.environment[2].left = window.innerWidth; // right wall
-        squalo.environment[2].bottom = window.innerHeight;
-
-        squalo.environment[3].right = window.innerWidth; // ceiling
-      }
-    });
   });
 })();
