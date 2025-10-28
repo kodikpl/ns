@@ -1,6 +1,6 @@
 // Self-contained Shimeji plugin (no mascot.json needed)
 (function() {
-  const SHIMEJI_PATH = "//naplet.space/shimejiee%20-%20Tama%20Mod/img/Shimeji/";
+  const SHIMEJI_PATH = "//naplet.space/things/shimejiee%20-%20Tama%20Mod/img/Shimeji/";
 
   let squalo = null;
   let dragData = { dragging: false, offsetX: 0, offsetY: 0 };
