@@ -79,11 +79,12 @@
 
       shime.init(div, x, y);
 
-      // --- Invisible floor and walls ---
+      // --- Invisible boundaries (floor + walls) ---
       shime.makeEnvironment([
-        { x:0, y:window.innerHeight-128, width:window.innerWidth, height:10 }, // floor
-        { x:-100, y:0, width:100, height:window.innerHeight }, // left wall
-        { x:window.innerWidth, y:0, width:100, height:window.innerHeight } // right wall
+        { left: 0, top: window.innerHeight-128, right: window.innerWidth, bottom: window.innerHeight }, // floor
+        { left: -100, top: 0, right: 0, bottom: window.innerHeight }, // left wall
+        { left: window.innerWidth, top: 0, right: window.innerWidth+100, bottom: window.innerHeight }, // right wall
+        { left: 0, top: -100, right: window.innerWidth, bottom: 0 } // ceiling
       ]);
 
       shime.act("fall", 40);
@@ -141,15 +142,18 @@
     // --- Init mascot ---
     createShimeji(window.innerWidth/2, window.innerHeight/2);
 
-    // --- Adjust floor & walls on resize ---
+    // --- Adjust boundaries on resize ---
     window.addEventListener("resize", ()=>{
       if(squalo && squalo.environment){
-        squalo.environment[0].y = window.innerHeight-128; // floor
-        squalo.environment[0].width = window.innerWidth;
+        squalo.environment[0].top = window.innerHeight-128; // floor
+        squalo.environment[0].right = window.innerWidth;
+        squalo.environment[0].bottom = window.innerHeight;
 
-        squalo.environment[1].height = window.innerHeight; // left wall
-        squalo.environment[2].x = window.innerWidth;       // right wall
-        squalo.environment[2].height = window.innerHeight;
+        squalo.environment[1].bottom = window.innerHeight; // left wall
+        squalo.environment[2].left = window.innerWidth; // right wall
+        squalo.environment[2].bottom = window.innerHeight;
+
+        squalo.environment[3].right = window.innerWidth; // ceiling
       }
     });
   });
