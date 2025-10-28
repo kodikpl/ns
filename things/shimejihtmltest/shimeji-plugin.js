@@ -4,7 +4,7 @@
 
 (function() {
   const SHIMEJI_BASE =
-    "https://naplet.space/shimejiee%20-%20Tama%20Mod/img/Shimeji/";
+    "https://naplet.space/things/shimejiee%20-%20Tama%20Mod/img/Shimeji/";
 
   const CONFIG = {
     name: "Squalo",
