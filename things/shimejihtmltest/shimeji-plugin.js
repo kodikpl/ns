@@ -1,194 +1,159 @@
-// === Shimeji Plugin v1.2 ===
-// Safe version: waits for DOM before accessing document.body.
-// Requires: shimeji.js + randomWalk.js + shimeji.css
+// Shimeji Web Plugin by GPT-5
+// Loads a mascot that can walk, fall, climb, stand, be dragged, and has a right-click menu
 
 (function() {
-  const SHIMEJI_BASE =
-    "https://naplet.space/things/shimejiee%20-%20Tama%20Mod/img/Shimeji/";
+  const SHIMEJI_PATH = "https://naplet.space/things/shimejiee%20-%20Tama%20Mod/img/Shimeji/";
 
-  const CONFIG = {
-    name: "Squalo",
-    license: "unknown",
-    baseUrl: SHIMEJI_BASE,
-    actions: {
-      sleep: [{ src: "shime21.png", anchor:[64,128], move:{x:0,y:0}, duration:2500 }],
-      stand: [{ src: "shime1.png", anchor:[64,128], move:{x:0,y:0}, duration:250 }],
-      walk: [
-        { src:"shime1.png", anchor:[64,128], move:{x:-20,y:0}, duration:300 },
-        { src:"shime2.png", anchor:[64,128], move:{x:-20,y:0}, duration:300 },
-        { src:"shime1.png", anchor:[64,128], move:{x:-20,y:0}, duration:300 },
-        { src:"shime3.png", anchor:[64,128], move:{x:-20,y:0}, duration:300 }
-      ],
-      shift: [
-        { src:"shime25.png",anchor:[64,128],move:{x:0,y:0},duration:800 },
-        { src:"shime25.png",anchor:[64,128],move:{x:-10,y:0},duration:200 },
-        { src:"shime23.png",anchor:[64,128],move:{x:-10,y:0},duration:200 },
-        { src:"shime24.png",anchor:[64,128],move:{x:-10,y:0},duration:200 },
-        { src:"shime24.png",anchor:[64,128],move:{x:0,y:0},duration:800 },
-        { src:"shime24.png",anchor:[64,128],move:{x:-20,y:0},duration:200 },
-        { src:"shime23.png",anchor:[64,128],move:{x:-20,y:0},duration:200 },
-        { src:"shime25.png",anchor:[64,128],move:{x:-20,y:0},duration:200 }
-      ],
-      sit_sing: [
-        { src:"shime31.png",anchor:[64,128],move:{x:0,y:0},duration:250 },
-        { src:"shime32.png",anchor:[64,128],move:{x:0,y:0},duration:750 },
-        { src:"shime31.png",anchor:[64,128],move:{x:0,y:0},duration:250 },
-        { src:"shime33.png",anchor:[64,128],move:{x:0,y:0},duration:750 }
-      ],
-      jump: [{ src:"shime22.png",anchor:[64,128],move:{x:0,y:0},duration:200 }],
-      fall: [{ src:"shime4.png",anchor:[64,128],move:{x:0,y:40},duration:100 }],
-      land: [
-        { src:"shime18.png",anchor:[64,128],move:{x:0,y:0},duration:200 },
-        { src:"shime19.png",anchor:[64,128],move:{x:0,y:0},duration:200 }
-      ],
-      climb: [
-        { src:"shime14.png",anchor:[64,128],move:{x:0,y:0},duration:800 },
-        { src:"shime14.png",anchor:[64,128],move:{x:0,y:-10},duration:200 },
-        { src:"shime12.png",anchor:[64,128],move:{x:0,y:-10},duration:200 },
-        { src:"shime13.png",anchor:[64,128],move:{x:0,y:-10},duration:200 },
-        { src:"shime13.png",anchor:[64,128],move:{x:0,y:0},duration:800 },
-        { src:"shime13.png",anchor:[64,128],move:{x:0,y:-20},duration:200 },
-        { src:"shime12.png",anchor:[64,128],move:{x:0,y:-20},duration:200 },
-        { src:"shime14.png",anchor:[64,128],move:{x:0,y:-20},duration:200 }
-      ]
-    },
-    behavior: {}
-  };
+  let squalo = null;
+  let isDragging = false;
+  let dragOffset = { x: 0, y: 0 };
 
-  window.addEventListener("DOMContentLoaded", () => {
-    // --- Styling ---
-    const style = document.createElement("style");
-    style.textContent = `
-      #shimeji-menu {
-        position: absolute;
-        display: none;
-        background: rgba(30,30,30,0.95);
-        border: 1px solid #888;
-        border-radius: 10px;
-        padding: 5px;
-        z-index: 9999;
-      }
-      .shimeji-btn {
-        border: 1px solid #ccc;
-        padding: 5px 10px;
-        margin: 3px;
-        cursor: pointer;
-        display: block;
-        background-color: #444;
-        color: #fff;
-        border-radius: 6px;
-        transition: background 0.2s;
-        text-align: center;
-      }
-      .shimeji-btn:hover { background-color: #666; }
-      .shimeji { user-select: none; cursor: grab; }
-      .shimeji.dragging { cursor: grabbing; opacity: 0.8; }
-    `;
-    document.head.appendChild(style);
+  // Helper
+  const $ = id => document.getElementById(id);
 
-    // --- DOM Setup ---
-    const container = document.createElement("div");
-    container.id = "shimeji-container";
-    container.style.position = "fixed";
-    container.style.bottom = "0";
-    container.style.left = "0";
-    container.style.zIndex = "9998";
-    document.body.appendChild(container);
+  // Create mascot container
+  const container = document.createElement("div");
+  container.id = "shimeji-container";
+  container.style.position = "fixed";
+  container.style.left = "500px";
+  container.style.top = "500px";
+  container.style.zIndex = "9998";
+  container.style.userSelect = "none";
+  document.body.appendChild(container);
 
-    const menu = document.createElement("div");
-    menu.id = "shimeji-menu";
-    menu.innerHTML = `
-      <div class="shimeji-btn" data-action="walk">Walk</div>
-      <div class="shimeji-btn" data-action="climb">Climb</div>
-      <div class="shimeji-btn" data-action="stand">Stand</div>
-      <div class="shimeji-btn" data-action="fall">Drop</div>
-      <div class="shimeji-btn" data-action="hide">Hide</div>
-    `;
-    document.body.appendChild(menu);
+  // Context menu
+  const menu = document.createElement("div");
+  menu.id = "shimeji-menu";
+  menu.style.position = "absolute";
+  menu.style.display = "none";
+  menu.style.background = "rgba(30,30,30,0.9)";
+  menu.style.border = "1px solid #888";
+  menu.style.borderRadius = "10px";
+  menu.style.padding = "5px";
+  menu.style.zIndex = "9999";
 
-    let squalo;
+  const menuActions = ["walk", "climb", "stand", "fall", "hide"];
+  menuActions.forEach(action => {
+    const btn = document.createElement("div");
+    btn.className = "shimeji-btn";
+    btn.dataset.action = action;
+    btn.textContent = action.charAt(0).toUpperCase() + action.slice(1);
+    btn.style.border = "1px solid #ccc";
+    btn.style.padding = "5px 10px";
+    btn.style.margin = "3px";
+    btn.style.cursor = "pointer";
+    btn.style.backgroundColor = "#444";
+    btn.style.color = "#fff";
+    btn.style.borderRadius = "6px";
+    btn.style.textAlign = "center";
+    btn.style.transition = "background 0.2s";
+    btn.addEventListener("mouseenter", () => (btn.style.background = "#666"));
+    btn.addEventListener("mouseleave", () => (btn.style.background = "#444"));
+    menu.appendChild(btn);
+  });
+  document.body.appendChild(menu);
 
-    function createShimeji(x = 500, y = 500) {
-      const shime = new Shimeji(CONFIG);
-      const div = document.createElement("div");
-      div.className = "shimeji";
-      container.appendChild(div);
-      shime.init(div, x, y);
-      shime.makeEnvironment([]);
-      shime.act("fall", 40);
-      squalo = shime;
-
-      // --- Dragging Logic ---
-      let isDragging = false;
-      let offsetX = 0, offsetY = 0;
-
-      function startDrag(e) {
-        e.preventDefault();
-        const cX = e.touches ? e.touches[0].clientX : e.clientX;
-        const cY = e.touches ? e.touches[0].clientY : e.clientY;
-        offsetX = cX - div.offsetLeft;
-        offsetY = cY - div.offsetTop;
-        isDragging = true;
-        div.classList.add("dragging");
-        shime.cancelAct();
-      }
-
-      function duringDrag(e) {
-        if (!isDragging) return;
-        const cX = e.touches ? e.touches[0].clientX : e.clientX;
-        const cY = e.touches ? e.touches[0].clientY : e.clientY;
-        const x = cX - offsetX;
-        const y = cY - offsetY;
-        div.style.left = x + "px";
-        div.style.top = y + "px";
-        div.style.position = "fixed";
-        shime._x = x;
-        shime._y = y;
-      }
-
-      function endDrag() {
-        if (!isDragging) return;
-        isDragging = false;
-        div.classList.remove("dragging");
-        shime.act("land", 1);
-      }
-
-      div.addEventListener("mousedown", startDrag);
-      div.addEventListener("touchstart", startDrag, { passive: false });
-      document.addEventListener("mousemove", duringDrag);
-      document.addEventListener("touchmove", duringDrag, { passive: false });
-      document.addEventListener("mouseup", endDrag);
-      document.addEventListener("touchend", endDrag);
-
-      // --- Right-click menu trigger ---
-      div.addEventListener("contextmenu", e => {
-        e.preventDefault();
-        menu.style.display = "block";
-        menu.style.left = e.pageX + "px";
-        menu.style.top = e.pageY + "px";
-      });
-    }
-
-    // Hide context menu on click elsewhere
-    document.addEventListener("click", e => {
-      if (!menu.contains(e.target)) menu.style.display = "none";
-    });
-
-    // Menu actions
-    menu.addEventListener("click", e => {
-      if (!e.target.classList.contains("shimeji-btn")) return;
-      const action = e.target.dataset.action;
-      menu.style.display = "none";
-
-      if (action === "hide") {
-        container.style.display = "none";
-        return;
-      }
-
-      if (squalo) squalo.act(action, 1, false, false, false);
-    });
+  // Main function to create mascot
+  function createShimeji(config, x = 500, y = 500) {
+    const shime = new Shimeji(config);
+    const div = document.createElement("div");
+    div.className = "shimeji";
+    container.appendChild(div);
 
     // Initialize mascot
-    createShimeji(window.innerWidth / 2, window.innerHeight / 2);
+    shime.init(div, x, y);
+
+    // Define a virtual floor (bottom of window)
+    shime.makeEnvironment([
+      { x: 0, y: window.innerHeight - 128, width: window.innerWidth, height: 10 }
+    ]);
+
+    // Initial fall animation
+    shime.act("fall", 40);
+
+    // Store reference
+    squalo = shime;
+
+    // Right-click menu
+    div.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      menu.style.display = "block";
+      menu.style.left = e.pageX + "px";
+      menu.style.top = e.pageY + "px";
+    });
+
+    // Dragging
+    div.addEventListener("mousedown", e => {
+      if (e.button === 0) { // left mouse
+        isDragging = true;
+        dragOffset.x = e.clientX - parseInt(div.style.left || 0);
+        dragOffset.y = e.clientY - parseInt(div.style.top || 0);
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener("mousemove", e => {
+      if (!isDragging) return;
+      const xPos = e.clientX - dragOffset.x;
+      const yPos = e.clientY - dragOffset.y;
+      div.style.left = xPos + "px";
+      div.style.top = yPos + "px";
+      if (squalo) squalo.place(xPos, yPos);
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        // Snap to floor if below bottom
+        const floorY = window.innerHeight - 128;
+        if (squalo._y > floorY) {
+          squalo.place(squalo._x, floorY);
+          div.style.top = floorY + "px";
+        }
+      }
+    });
+  }
+
+  // Hide menu when clicking elsewhere
+  document.addEventListener("click", e => {
+    if (!menu.contains(e.target)) menu.style.display = "none";
+  });
+
+  // Menu button actions
+  menu.addEventListener("click", e => {
+    if (!e.target.classList.contains("shimeji-btn")) return;
+    const action = e.target.dataset.action;
+    menu.style.display = "none";
+
+    if (action === "hide") {
+      container.style.display = "none";
+      return;
+    }
+
+    if (squalo) squalo.act(action, 1, false, false, false);
+  });
+
+  // Load config and start mascot
+  window.addEventListener("DOMContentLoaded", () => {
+    fetch(SHIMEJI_PATH + "mascot.json")
+      .then(r => r.json())
+      .then(conf => {
+        // Replace all image sources with the new base path
+        for (const act in conf.actions) {
+          conf.actions[act].forEach(frame => {
+            frame.src = SHIMEJI_PATH + frame.src.replace(/^.*?shime/, "shime");
+          });
+        }
+        createShimeji(conf);
+      })
+      .catch(err => console.error("Failed to load mascot.json:", err));
+  });
+
+  // Adjust floor when window resizes
+  window.addEventListener("resize", () => {
+    if (squalo && squalo.environment) {
+      squalo.environment[0].y = window.innerHeight - 128;
+      squalo.environment[0].width = window.innerWidth;
+    }
   });
 })();
