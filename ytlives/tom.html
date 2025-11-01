@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YouTube TV Channel — Fullscreen Playlist TV</title>
+  <style>
+    html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#fff}
+    #player{position:absolute;inset:0;width:100%;height:100%;background:#000}
+    .meta{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:12px;background:linear-gradient(180deg,rgba(0,0,0,0.75),rgba(0,0,0,0));z-index:40}
+    .title a{color:#fff;text-decoration:none;font-weight:700}
+    .title a:hover{text-decoration:underline}
+    .time{font-family:monospace;font-size:14px}
+    .controls{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:10px;padding:12px;background:linear-gradient(180deg,rgba(0,0,0,0.4),rgba(0,0,0,0.85));transition:opacity .25s ease;z-index:40}
+    .controls.hidden{opacity:0;pointer-events:none}
+    .btn{background:rgba(255,255,255,0.08);border:none;border-radius:8px;padding:8px 12px;color:#fff;cursor:pointer}
+    .slider{width:140px}
+    .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:50;color:#fff;background:linear-gradient(0deg,rgba(0,0,0,0.5),transparent)}
+    .error{color:#ff8080}
+  </style>
+</head>
+<body>
+  <div id="player"></div>
+
+  <div class="meta">
+    <div class="title" id="nowTitle"><a href="#" id="nowLink" target="_blank">Ładowanie...</a></div>
+    <div class="time" id="videoTime">--:-- / --:--</div>
+  </div>
+
+  <div class="controls" id="controls">
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-size:13px">Vol</label>
+      <input id="vol" class="slider" type="range" min="0" max="100" value="80">
+    </div>
+    <div style="flex:1"></div>
+    <button class="btn" id="fsBtn">Fullscreen</button>
+  </div>
+
+  <div class="loading" id="loading">Ładowanie listy odtwarzania…</div>
+
+  <script>
+    // === CONFIG: set your playlist ID and your API key here ===
+    const PLAYLIST_ID = 'PL2DBcdm4eKcglbj6Fmcnpjb_wWmjAzN7V';
+    const API_KEY = 'AIzaSyCnvoAAzO11jCL7xNfwgjV5LzC_gHcAHf4'; // <-- replace with your key locally (do not commit to public repos)
+    // ==========================================================
+
+    // Scheduler / behavior constants
+    const SYNC_INTERVAL_MS = 2000;
+    const SEEK_THRESHOLD = 3; // seconds
+
+    // Internal state
+    let SCHEDULE = []; // {id,title,duration}
+    let playlistTotal = 0;
+    let player;
+
+    // UI elements
+    const loadingEl = document.getElementById('loading');
+    const nowTitleLink = document.getElementById('nowLink');
+    const videoTimeEl = document.getElementById('videoTime');
+    const volSlider = document.getElementById('vol');
+    const fsBtn = document.getElementById('fsBtn');
+    const controls = document.getElementById('controls');
+
+    // Utilities
+    function isoDurationToSeconds(iso) {
+      // parse ISO 8601 duration (PT#H#M#S)
+      const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+      if(!m) return 0;
+      const h = parseInt(m[1]||0,10);
+      const mm = parseInt(m[2]||0,10);
+      const s = parseInt(m[3]||0,10);
+      return h*3600 + mm*60 + s;
+    }
+
+    function formatTime(sec){
+      sec = Math.max(0,Math.round(sec||0));
+      const h = Math.floor(sec/3600);
+      const m = Math.floor((sec%3600)/60);
+      const s = sec%60;
+      if(h>0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      return `${m}:${String(s).padStart(2,'0')}`;
+    }
+
+    function showError(msg){
+      loadingEl.innerHTML = `<div class='error'>${msg}</div>`;
+    }
+
+    // Fetch all playlist items (video IDs + titles) handling pagination
+    async function fetchAllPlaylistItems(playlistId){
+      if(!API_KEY || API_KEY === 'YOUR_API_KEY') throw new Error('Missing API key. Replace API_KEY in the script with your YouTube Data API key.');
+      const items = [];
+      let pageToken = '';
+      do {
+        const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${encodeURIComponent(playlistId)}&key=${API_KEY}` + (pageToken?`&pageToken=${pageToken}`:'');
+        const res = await fetch(url);
+        if(!res.ok) throw new Error(`YouTube API playlistItems failed: ${res.status} ${res.statusText}`);
+        const data = await res.json();
+        (data.items || []).forEach(it => {
+          // Skip if the item has no videoId (deleted/private)
+          const vid = it.contentDetails && it.contentDetails.videoId;
+          const title = it.snippet && it.snippet.title || 'Untitled';
+          if(vid) items.push({id: vid, title});
+        });
+        pageToken = data.nextPageToken || '';
+      } while(pageToken);
+      return items;
+    }
+
+    // Fetch durations for an array of video ids (max 50 per call)
+    async function fetchDurationsForIds(ids){
+      const batches = [];
+      for(let i=0;i<ids.length;i+=50) batches.push(ids.slice(i,i+50));
+      const results = {};
+      for(const batch of batches){
+        const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${batch.join(',')}&maxResults=50&key=${API_KEY}`;
+        const res = await fetch(url);
+        if(!res.ok) throw new Error(`YouTube API videos failed: ${res.status} ${res.statusText}`);
+        const data = await res.json();
+        (data.items||[]).forEach(it=>{
+          results[it.id] = isoDurationToSeconds(it.contentDetails.duration || 'PT0S');
+        });
+      }
+      return results; // { videoId: seconds }
+    }
+
+    // Build SCHEDULE from playlist id
+    async function buildScheduleFromPlaylist(){
+      loadingEl.textContent = 'Pobieranie listy odtwarzania...';
+      const items = await fetchAllPlaylistItems(PLAYLIST_ID);
+      if(items.length === 0) throw new Error('Playlista jest pusta lub nie zawiera dostępnych filmów.');
+      loadingEl.textContent = 'Pobieranie długości filmów...';
+      const ids = items.map(i=>i.id);
+      const durationsMap = await fetchDurationsForIds(ids);
+      // assemble schedule
+      SCHEDULE = items.map(it => ({ id: it.id, title: it.title, duration: durationsMap[it.id] || 0 }));
+      playlistTotal = SCHEDULE.reduce((s,v)=>s+(v.duration||0),0);
+      if(playlistTotal === 0) throw new Error('Nie udało się obliczyć długości filmów. Upewnij się, że filmy nie są prywatne.');
+    }
+
+    // Scheduler mapping
+    function getAnchorEpoch(){
+      // use midnight UTC as stable anchor (all clients sync the same day)
+      const d = new Date();
+      return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())/1000);
+    }
+    function scheduleAtTime(epochSec){
+      const anchor = getAnchorEpoch();
+      let offset = (epochSec - anchor) % playlistTotal;
+      if(offset < 0) offset += playlistTotal;
+      let accum = 0;
+      for(let i=0;i<SCHEDULE.length;i++){
+        const dur = SCHEDULE[i].duration || 0;
+        if(offset < accum + dur) return { index: i, timeInClip: offset - accum };
+        accum += dur;
+      }
+      return { index: 0, timeInClip: 0 };
+    }
+
+    // YouTube player lifecycle
+    function onYouTubeIframeAPIReady(){
+      player = new YT.Player('player', {
+        width:'100%', height:'100%',
+        videoId: SCHEDULE[0].id,
+        playerVars: { autoplay: 1, controls: 0, disablekb: 1, iv_load_policy: 3, modestbranding: 1, rel:0, fs:0, playsinline:1, origin: window.location.origin },
+        events: { onReady: onPlayerReady }
+      });
+    }
+
+    function onPlayerReady(){
+      player.setVolume(parseInt(volSlider.value,10));
+      // initial sync then periodic
+      syncToSchedule(true);
+      setInterval(syncToSchedule, SYNC_INTERVAL_MS);
+      setInterval(tick,1000);
+      loadingEl.style.display = 'none';
+    }
+
+    function tick(){
+      if(!player) return;
+      const cur = player.getCurrentTime ? player.getCurrentTime() : 0;
+      const dur = player.getDuration ? player.getDuration() : (SCHEDULE[0] && SCHEDULE[0].duration || 0);
+      videoTimeEl.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+    }
+
+    function formatTime(s){ s = Math.max(0,Math.round(s||0)); const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); const sec=s%60; return h>0?`${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`:`${m}:${String(sec).padStart(2,'0')}`; }
+
+    async function syncToSchedule(force){
+      if(!player || !SCHEDULE || SCHEDULE.length===0) return;
+      const now = Math.floor(Date.now()/1000);
+      const sched = scheduleAtTime(now);
+      const targetIdx = sched.index;
+      const targetTime = sched.timeInClip;
+      const target = SCHEDULE[targetIdx];
+
+      try{
+        const currentVid = player.getVideoData ? player.getVideoData().video_id : null;
+        if(!currentVid || currentVid !== target.id){
+          player.loadVideoById({ videoId: target.id, startSeconds: Math.floor(targetTime) });
+          updateTitle(targetIdx);
+          if(force) player.playVideo();
+          return;
+        }
+        const cur = player.getCurrentTime();
+        if(Math.abs(cur - targetTime) > SEEK_THRESHOLD){
+          player.seekTo(Math.floor(targetTime), true);
+        }
+        if(force && player.getPlayerState && player.getPlayerState() !== YT.PlayerState.PLAYING){
+          player.playVideo();
+        }
+      } catch(err){
+        console.warn('sync error', err);
+      }
+    }
+
+    function updateTitle(idx){
+      const it = SCHEDULE[idx];
+      nowTitleLink.textContent = it.title;
+      nowTitleLink.href = `https://www.youtube.com/watch?v=${it.id}`;
+    }
+
+    // Auto-hide controls
+    let hideTimeout;
+    function showControls(){ controls.classList.remove('hidden'); clearTimeout(hideTimeout); hideTimeout = setTimeout(()=>controls.classList.add('hidden'),3000); }
+    document.addEventListener('mousemove', showControls);
+    document.addEventListener('touchstart', showControls, {passive:true});
+    showControls();
+
+    // Fullscreen
+    fsBtn.addEventListener('click', ()=>{
+      const el = document.documentElement;
+      if(!document.fullscreenElement) el.requestFullscreen(); else document.exitFullscreen();
+    });
+
+    volSlider.addEventListener('input', ()=>{ if(player) player.setVolume(parseInt(volSlider.value,10)); });
+
+    // Start: load playlist, then load YouTube API and start player
+    (async function init(){
+      try{
+        await buildScheduleFromPlaylist();
+        // dynamically load YouTube iframe API and let it call onYouTubeIframeAPIReady
+        const s = document.createElement('script');
+        s.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(s);
+        // expose function name for API
+        window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+      } catch(err){
+        console.error(err);
+        showError(err.message || 'Błąd podczas ładowania');
+      }
+    })();
+
+  </script>
+</body>
+</html>
