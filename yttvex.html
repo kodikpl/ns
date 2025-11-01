@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YouTube TV Channel — Full Page Scheduler</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      color: #e6eef8;
+      font-family: Inter, system-ui, Segoe UI, Roboto, Arial;
+      overflow: hidden;
+    }
+    .tv {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background: #000;
+    }
+    .screen {
+      position: relative;
+      flex: 1;
+      background: #000;
+    }
+    #player {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+    }
+    .btn {
+      background: rgba(255,255,255,0.08);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: inherit;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    .btn:hover {
+      background: rgba(255,255,255,0.15);
+    }
+    .slider { width: 120px; }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.8);
+      font-size: 14px;
+    }
+    .title { font-weight: 600; }
+    .small { font-size: 13px; color: #a0aec0; }
+    .playlist {
+      display: none; /* hidden for embed use */
+    }
+  </style>
+</head>
+<body>
+  <div class="tv" id="tv">
+    <div class="screen">
+      <div id="player"></div>
+      <div class="overlay"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="playPause">Play</button>
+      <button class="btn" id="stopBtn">Stop</button>
+      <label class="small">Vol</label>
+      <input id="vol" class="slider" type="range" min="0" max="100" value="80">
+      <button class="btn" id="muteBtn">Mute</button>
+      <div style="flex:1"></div>
+      <button class="btn" id="resync">Resync</button>
+    </div>
+
+    <div class="meta">
+      <div class="title" id="nowTitle">—</div>
+      <div class="small">Clock: <span id="clock">--:--:--</span> | <span id="videoTime">00:00 / 00:00</span></div>
+    </div>
+  </div>
+
+  <script>
+    const SCHEDULE = [
+      { id: 'M7lc1UVf-VE', title: 'Sample: YouTube API Demo', duration: 125 },
+      { id: 'dQw4w9WgXcQ', title: 'Placeholder: Rick Astley (example)', duration: 213 },
+      { id: '3JZ_D3ELwOQ', title: 'Placeholder: Imagine Dragons (example)', duration: 186 }
+    ];
+
+    const SYNC_INTERVAL_MS = 2000;
+    const SEEK_THRESHOLD = 3;
+    let player, pausedByUser = false;
+    const playlistTotal = SCHEDULE.reduce((s, v) => s + v.duration, 0);
+
+    const playPauseBtn = document.getElementById('playPause');
+    const stopBtn = document.getElementById('stopBtn');
+    const volSlider = document.getElementById('vol');
+    const muteBtn = document.getElementById('muteBtn');
+    const resyncBtn = document.getElementById('resync');
+    const nowTitle = document.getElementById('nowTitle');
+    const clockEl = document.getElementById('clock');
+    const videoTimeEl = document.getElementById('videoTime');
+
+    playPauseBtn.onclick = () => {
+      if (!player) return;
+      const state = player.getPlayerState();
+      if (state === YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo();
+    };
+    stopBtn.onclick = () => { if (player) { player.pauseVideo(); pausedByUser = true; } };
+    volSlider.oninput = () => { if (player) player.setVolume(volSlider.value); };
+    muteBtn.onclick = () => { if (!player) return; if (player.isMuted()) { player.unMute(); muteBtn.textContent = 'Mute'; } else { player.mute(); muteBtn.textContent = 'Unmute'; } };
+    resyncBtn.onclick = () => { pausedByUser = false; syncToSchedule(true); };
+
+    const ytScript = document.createElement('script');
+    ytScript.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(ytScript);
+
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        width: '100%', height: '100%',
+        videoId: SCHEDULE[0].id,
+        playerVars: { autoplay: 0, controls: 0, modestbranding: 1, rel: 0, origin: window.location.origin },
+        events: { onReady: onPlayerReady, onStateChange: onPlayerStateChange }
+      });
+    }
+
+    function onPlayerReady() {
+      player.setVolume(volSlider.value);
+      setInterval(updateClock, 1000);
+      setInterval(() => syncToSchedule(), SYNC_INTERVAL_MS);
+      syncToSchedule(true);
+    }
+
+    function onPlayerStateChange(e) {
+      playPauseBtn.textContent = (e.data === YT.PlayerState.PLAYING) ? 'Pause' : 'Play';
+    }
+
+    function scheduleAtTime(epoch) {
+      const anchor = Math.floor(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())/1000);
+      let offset = (epoch - anchor) % playlistTotal;
+      if (offset < 0) offset += playlistTotal;
+      let sum = 0;
+      for (let i = 0; i < SCHEDULE.length; i++) {
+        if (offset < sum + SCHEDULE[i].duration) return { index: i, time: offset - sum };
+        sum += SCHEDULE[i].duration;
+      }
+      return { index: 0, time: 0 };
+    }
+
+    function syncToSchedule(force) {
+      if (!player || pausedByUser) return;
+      const now = Math.floor(Date.now() / 1000);
+      const { index, time } = scheduleAtTime(now);
+      const currentId = player.getVideoData().video_id;
+      const targetId = SCHEDULE[index].id;
+      if (currentId !== targetId) {
+        player.loadVideoById({ videoId: targetId, startSeconds: time });
+        nowTitle.textContent = SCHEDULE[index].title;
+      } else {
+        const diff = Math.abs(player.getCurrentTime() - time);
+        if (diff > SEEK_THRESHOLD) player.seekTo(time, true);
+        if (force && player.getPlayerState() !== YT.PlayerState.PLAYING) player.playVideo();
+      }
+      videoTimeEl.textContent = `${format(time)} / ${format(SCHEDULE[index].duration)}`;
+    }
+
+    function updateClock() {
+      clockEl.textContent = new Date().toLocaleTimeString();
+    }
+
+    function format(s) {
+      s = Math.floor(s);
+      const m = Math.floor(s / 60), sec = s % 60;
+      return `${m}:${String(sec).padStart(2, '0')}`;
+    }
+
+    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+  </script>
+</body>
+</html>
