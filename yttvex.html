@@ -3,194 +3,164 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>YouTube TV Channel — Full Page Scheduler</title>
+  <title>YouTube TV Channel — Fullscreen Player</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background: #000;
-      color: #e6eef8;
-      font-family: Inter, system-ui, Segoe UI, Roboto, Arial;
-      overflow: hidden;
-    }
-    .tv {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      background: #000;
-    }
-    .screen {
-      position: relative;
-      flex: 1;
-      background: #000;
-    }
-    #player {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-    }
-    .overlay {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-    }
-    .controls {
-      display: flex;
-      gap: 8px;
-      padding: 10px;
-      background: rgba(0,0,0,0.6);
-      align-items: center;
-    }
-    .btn {
-      background: rgba(255,255,255,0.08);
-      border: none;
-      padding: 8px 12px;
-      border-radius: 8px;
-      color: inherit;
-      cursor: pointer;
-      pointer-events: auto;
-    }
-    .btn:hover {
-      background: rgba(255,255,255,0.15);
-    }
-    .slider { width: 120px; }
-    .meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 14px;
-      background: rgba(0,0,0,0.8);
-      font-size: 14px;
-    }
-    .title { font-weight: 600; }
-    .small { font-size: 13px; color: #a0aec0; }
-    .playlist {
-      display: none; /* hidden for embed use */
-    }
+    html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#fff;}
+    #player{position:absolute;inset:0;width:100%;height:100%;}
+    .controls{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:12px;background:linear-gradient(180deg,rgba(0,0,0,0.4),rgba(0,0,0,0.8));transition:opacity 0.3s ease;opacity:1;}
+    .controls.hidden{opacity:0;pointer-events:none;}
+    .btn{background:rgba(255,255,255,0.1);border:none;border-radius:8px;padding:8px 14px;color:#fff;cursor:pointer;}
+    .slider{width:120px;}
+    .meta{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:10px;background:linear-gradient(180deg,rgba(0,0,0,0.6),rgba(0,0,0,0));}
+    .title a{color:#fff;text-decoration:none;font-weight:600;}
+    .title a:hover{text-decoration:underline;}
+    .time{font-family:monospace;font-size:14px;}
   </style>
 </head>
 <body>
-  <div class="tv" id="tv">
-    <div class="screen">
-      <div id="player"></div>
-      <div class="overlay"></div>
-    </div>
-
-    <div class="controls">
-      <button class="btn" id="playPause">Play</button>
-      <button class="btn" id="stopBtn">Stop</button>
-      <label class="small">Vol</label>
+  <div id="player"></div>
+  <div class="meta">
+    <div class="title" id="nowTitle"><a href="#" target="_blank">—</a></div>
+    <div class="time" id="videoTime">00:00 / 00:00</div>
+  </div>
+  <div class="controls" id="controls">
+    <div style="display:flex;align-items:center;gap:6px">
+      <label style="font-size:13px">Vol</label>
       <input id="vol" class="slider" type="range" min="0" max="100" value="80">
-      <button class="btn" id="muteBtn">Mute</button>
-      <div style="flex:1"></div>
-      <button class="btn" id="resync">Resync</button>
     </div>
-
-    <div class="meta">
-      <div class="title" id="nowTitle">—</div>
-      <div class="small">Clock: <span id="clock">--:--:--</span> | <span id="videoTime">00:00 / 00:00</span></div>
-    </div>
+    <button class="btn" id="fsBtn">Fullscreen</button>
   </div>
 
   <script>
     const SCHEDULE = [
       { id: 'M7lc1UVf-VE', title: 'Sample: YouTube API Demo', duration: 125 },
-      { id: 'dQw4w9WgXcQ', title: 'Placeholder: Rick Astley (example)', duration: 213 },
-      { id: '3JZ_D3ELwOQ', title: 'Placeholder: Imagine Dragons (example)', duration: 186 }
+      { id: 'dQw4w9WgXcQ', title: 'Rick Astley (example)', duration: 213 },
+      { id: '3JZ_D3ELwOQ', title: 'Imagine Dragons (example)', duration: 186 }
     ];
 
     const SYNC_INTERVAL_MS = 2000;
     const SEEK_THRESHOLD = 3;
-    let player, pausedByUser = false;
-    const playlistTotal = SCHEDULE.reduce((s, v) => s + v.duration, 0);
 
-    const playPauseBtn = document.getElementById('playPause');
-    const stopBtn = document.getElementById('stopBtn');
+    let player;
+    let playlistTotal = SCHEDULE.reduce((s, v) => s + v.duration, 0);
+
     const volSlider = document.getElementById('vol');
-    const muteBtn = document.getElementById('muteBtn');
-    const resyncBtn = document.getElementById('resync');
-    const nowTitle = document.getElementById('nowTitle');
-    const clockEl = document.getElementById('clock');
+    const fsBtn = document.getElementById('fsBtn');
+    const nowTitleLink = document.querySelector('#nowTitle a');
     const videoTimeEl = document.getElementById('videoTime');
+    const controls = document.getElementById('controls');
 
-    playPauseBtn.onclick = () => {
-      if (!player) return;
-      const state = player.getPlayerState();
-      if (state === YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo();
-    };
-    stopBtn.onclick = () => { if (player) { player.pauseVideo(); pausedByUser = true; } };
-    volSlider.oninput = () => { if (player) player.setVolume(volSlider.value); };
-    muteBtn.onclick = () => { if (!player) return; if (player.isMuted()) { player.unMute(); muteBtn.textContent = 'Mute'; } else { player.mute(); muteBtn.textContent = 'Unmute'; } };
-    resyncBtn.onclick = () => { pausedByUser = false; syncToSchedule(true); };
+    let pausedByUser = false;
 
-    const ytScript = document.createElement('script');
-    ytScript.src = 'https://www.youtube.com/iframe_api';
+    // YouTube API
+    let ytScript = document.createElement('script');
+    ytScript.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(ytScript);
 
-    function onYouTubeIframeAPIReady() {
+    function getAnchorEpoch(){
+      const d = new Date();
+      return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())/1000;
+    }
+
+    function scheduleAtTime(epochSec){
+      const anchor = getAnchorEpoch();
+      let offset = (epochSec - anchor) % playlistTotal;
+      if(offset < 0) offset += playlistTotal;
+      let accum = 0;
+      for(let i=0;i<SCHEDULE.length;i++){
+        const dur = SCHEDULE[i].duration;
+        if(offset < accum + dur){
+          return { index: i, timeInClip: offset - accum };
+        }
+        accum += dur;
+      }
+      return { index: 0, timeInClip: 0 };
+    }
+
+    function onYouTubeIframeAPIReady(){
       player = new YT.Player('player', {
-        width: '100%', height: '100%',
         videoId: SCHEDULE[0].id,
-        playerVars: { autoplay: 0, controls: 0, modestbranding: 1, rel: 0, origin: window.location.origin },
-        events: { onReady: onPlayerReady, onStateChange: onPlayerStateChange }
+        playerVars: {
+          autoplay: 1,
+          controls: 0,
+          disablekb: 1,
+          iv_load_policy: 3,
+          modestbranding: 1,
+          rel: 0,
+          fs: 0,
+          playsinline: 1,
+          origin: window.location.origin
+        },
+        events: {
+          'onReady': onPlayerReady
+        }
       });
     }
 
-    function onPlayerReady() {
-      player.setVolume(volSlider.value);
-      setInterval(updateClock, 1000);
-      setInterval(() => syncToSchedule(), SYNC_INTERVAL_MS);
-      syncToSchedule(true);
+    function onPlayerReady(){
+      player.setVolume(parseInt(volSlider.value,10));
+      setInterval(syncToSchedule, SYNC_INTERVAL_MS);
+      setInterval(tick, 1000);
     }
 
-    function onPlayerStateChange(e) {
-      playPauseBtn.textContent = (e.data === YT.PlayerState.PLAYING) ? 'Pause' : 'Play';
-    }
+    function syncToSchedule(){
+      if(!player) return;
+      const now = Math.floor(Date.now()/1000);
+      const sched = scheduleAtTime(now);
+      const targetIdx = sched.index;
+      const targetTime = sched.timeInClip;
 
-    function scheduleAtTime(epoch) {
-      const anchor = Math.floor(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())/1000);
-      let offset = (epoch - anchor) % playlistTotal;
-      if (offset < 0) offset += playlistTotal;
-      let sum = 0;
-      for (let i = 0; i < SCHEDULE.length; i++) {
-        if (offset < sum + SCHEDULE[i].duration) return { index: i, time: offset - sum };
-        sum += SCHEDULE[i].duration;
-      }
-      return { index: 0, time: 0 };
-    }
-
-    function syncToSchedule(force) {
-      if (!player || pausedByUser) return;
-      const now = Math.floor(Date.now() / 1000);
-      const { index, time } = scheduleAtTime(now);
-      const currentId = player.getVideoData().video_id;
-      const targetId = SCHEDULE[index].id;
-      if (currentId !== targetId) {
-        player.loadVideoById({ videoId: targetId, startSeconds: time });
-        nowTitle.textContent = SCHEDULE[index].title;
+      const currentVid = player.getVideoData().video_id;
+      if(!currentVid || currentVid !== SCHEDULE[targetIdx].id){
+        player.loadVideoById({videoId:SCHEDULE[targetIdx].id,startSeconds:targetTime});
+        updateTitle(targetIdx);
       } else {
-        const diff = Math.abs(player.getCurrentTime() - time);
-        if (diff > SEEK_THRESHOLD) player.seekTo(time, true);
-        if (force && player.getPlayerState() !== YT.PlayerState.PLAYING) player.playVideo();
+        const diff = Math.abs(player.getCurrentTime()-targetTime);
+        if(diff>SEEK_THRESHOLD){
+          player.seekTo(targetTime,true);
+        }
       }
-      videoTimeEl.textContent = `${format(time)} / ${format(SCHEDULE[index].duration)}`;
     }
 
-    function updateClock() {
-      clockEl.textContent = new Date().toLocaleTimeString();
+    function updateTitle(idx){
+      const item = SCHEDULE[idx];
+      nowTitleLink.textContent = item.title;
+      nowTitleLink.href = `https://www.youtube.com/watch?v=${item.id}`;
     }
 
-    function format(s) {
-      s = Math.floor(s);
-      const m = Math.floor(s / 60), sec = s % 60;
-      return `${m}:${String(sec).padStart(2, '0')}`;
+    function tick(){
+      if(!player) return;
+      const cur = player.getCurrentTime();
+      const dur = player.getDuration()||0;
+      videoTimeEl.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
     }
 
-    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+    function formatTime(sec){
+      sec = Math.max(0,Math.round(sec));
+      const m=Math.floor(sec/60),s=sec%60;
+      return `${m}:${String(s).padStart(2,'0')}`;
+    }
+
+    volSlider.addEventListener('input',()=>{
+      if(player) player.setVolume(parseInt(volSlider.value,10));
+    });
+
+    fsBtn.addEventListener('click',()=>{
+      const el = document.documentElement;
+      if(!document.fullscreenElement){ el.requestFullscreen(); }
+      else{ document.exitFullscreen(); }
+    });
+
+    // Auto-hide controls
+    let hideTimeout;
+    function showControls(){
+      controls.classList.remove('hidden');
+      clearTimeout(hideTimeout);
+      hideTimeout = setTimeout(()=>controls.classList.add('hidden'),3000);
+    }
+
+    document.addEventListener('mousemove',showControls);
+    showControls();
   </script>
 </body>
 </html>
