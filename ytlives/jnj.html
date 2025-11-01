@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YouTube TV Channel — Fullscreen Player</title>
+  <style>
+    html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#fff;}
+    #player{position:absolute;inset:0;width:100%;height:100%;}
+    .controls{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:12px;background:linear-gradient(180deg,rgba(0,0,0,0.4),rgba(0,0,0,0.8));transition:opacity 0.3s ease;opacity:1;}
+    .controls.hidden{opacity:0;pointer-events:none;}
+    .btn{background:rgba(255,255,255,0.1);border:none;border-radius:8px;padding:8px 14px;color:#fff;cursor:pointer;}
+    .slider{width:120px;}
+    .meta{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:10px;background:linear-gradient(180deg,rgba(0,0,0,0.6),rgba(0,0,0,0));}
+    .title a{color:#fff;text-decoration:none;font-weight:600;}
+    .title a:hover{text-decoration:underline;}
+    .time{font-family:monospace;font-size:14px;}
+  </style>
+</head>
+<body>
+  <div id="player"></div>
+  <div class="meta">
+    <div class="title" id="nowTitle"><a href="#" target="_blank">BFDI TV - 24/7</a></div>
+    <div class="time" id="videoTime">00:00 / 00:00</div>
+  </div>
+  <div class="controls" id="controls">
+    <div style="display:flex;align-items:center;gap:6px">
+      <label style="font-size:13px">Vol</label>
+      <input id="vol" class="slider" type="range" min="0" max="100" value="80">
+    </div>
+    <button class="btn" id="fsBtn">Fullscreen</button>
+  </div>
+
+  <script>
+    const SCHEDULE = [
+      { id: 'ykmCEEvdc54', title: 'BFDI TV - 24/7', duration: 78567 },
+    ];
+
+    const SYNC_INTERVAL_MS = 5000;
+    const SEEK_THRESHOLD = 3;
+
+    let player;
+    let playlistTotal = SCHEDULE.reduce((s, v) => s + v.duration, 0);
+
+    const volSlider = document.getElementById('vol');
+    const fsBtn = document.getElementById('fsBtn');
+    const nowTitleLink = document.querySelector('#nowTitle a');
+    const videoTimeEl = document.getElementById('videoTime');
+    const controls = document.getElementById('controls');
+
+    let pausedByUser = false;
+
+    // YouTube API
+    let ytScript = document.createElement('script');
+    ytScript.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(ytScript);
+
+    function getAnchorEpoch(){
+      const d = new Date();
+      return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())/1000;
+    }
+
+    function scheduleAtTime(epochSec){
+      const anchor = getAnchorEpoch();
+      let offset = (epochSec - anchor) % playlistTotal;
+      if(offset < 0) offset += playlistTotal;
+      let accum = 0;
+      for(let i=0;i<SCHEDULE.length;i++){
+        const dur = SCHEDULE[i].duration;
+        if(offset < accum + dur){
+          return { index: i, timeInClip: offset - accum };
+        }
+        accum += dur;
+      }
+      return { index: 0, timeInClip: 0 };
+    }
+
+    function onYouTubeIframeAPIReady(){
+      player = new YT.Player('player', {
+        videoId: SCHEDULE[0].id,
+        playerVars: {
+          autoplay: 1,
+          controls: 0,
+          disablekb: 1,
+          iv_load_policy: 3,
+          modestbranding: 1,
+          rel: 0,
+          fs: 0,
+          playsinline: 1,
+          origin: window.location.origin
+        },
+        events: {
+          'onReady': onPlayerReady
+        }
+      });
+    }
+
+    function onPlayerReady(){
+      player.setVolume(parseInt(volSlider.value,10));
+      setInterval(syncToSchedule, SYNC_INTERVAL_MS);
+      setInterval(tick, 1000);
+    }
+
+    function syncToSchedule(){
+      if(!player) return;
+      const now = Math.floor(Date.now()/1000);
+      const sched = scheduleAtTime(now);
+      const targetIdx = sched.index;
+      const targetTime = sched.timeInClip;
+
+      const currentVid = player.getVideoData().video_id;
+      if(!currentVid || currentVid !== SCHEDULE[targetIdx].id){
+        player.loadVideoById({videoId:SCHEDULE[targetIdx].id,startSeconds:targetTime});
+        updateTitle(targetIdx);
+      } else {
+        const diff = Math.abs(player.getCurrentTime()-targetTime);
+        if(diff>SEEK_THRESHOLD){
+          player.seekTo(targetTime,true);
+        }
+      }
+    }
+
+    function updateTitle(idx){
+      const item = SCHEDULE[idx];
+      nowTitleLink.textContent = item.title;
+      nowTitleLink.href = `https://www.youtube.com/watch?v=${item.id}`;
+    }
+
+    function tick(){
+      if(!player) return;
+      const cur = player.getCurrentTime();
+      const dur = player.getDuration()||0;
+      videoTimeEl.textContent = ` `;
+    }
+
+    function formatTime(sec){
+      sec = Math.max(0,Math.round(sec));
+      const m=Math.floor(sec/60),s=sec%60;
+      return `${m}:${String(s).padStart(2,'0')}`;
+    }
+
+    volSlider.addEventListener('input',()=>{
+      if(player) player.setVolume(parseInt(volSlider.value,10));
+    });
+
+    fsBtn.addEventListener('click',()=>{
+      const el = document.documentElement;
+      if(!document.fullscreenElement){ el.requestFullscreen(); }
+      else{ document.exitFullscreen(); }
+    });
+
+    // Auto-hide controls
+    let hideTimeout;
+    function showControls(){
+      controls.classList.remove('hidden');
+      clearTimeout(hideTimeout);
+      hideTimeout = setTimeout(()=>controls.classList.add('hidden'),3000);
+    }
+
+    document.addEventListener('mousemove',showControls);
+    showControls();
+  </script>
+</body>
+</html>
