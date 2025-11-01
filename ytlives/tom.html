@@ -23,7 +23,7 @@
   <div id="player"></div>
 
   <div class="meta">
-    <div class="title" id="nowTitle"><a href="#" id="nowLink" target="_blank">Ładowanie...</a></div>
+    <div class="title" id="nowTitle"><a href="#" id="nowLink" target="_blank">Loading...</a></div>
     <div class="time" id="videoTime">--:-- / --:--</div>
   </div>
 
@@ -125,16 +125,16 @@
 
     // Build SCHEDULE from playlist id
     async function buildScheduleFromPlaylist(){
-      loadingEl.textContent = 'Pobieranie listy odtwarzania...';
+      loadingEl.textContent = 'Loading playlist...';
       const items = await fetchAllPlaylistItems(PLAYLIST_ID);
-      if(items.length === 0) throw new Error('Playlista jest pusta lub nie zawiera dostępnych filmów.');
-      loadingEl.textContent = 'Pobieranie długości filmów...';
+      if(items.length === 0) throw new Error('The playlist is empty or contains no videos available. Please contact the administrator to report the error.');
+      loadingEl.textContent = 'Getting video length...';
       const ids = items.map(i=>i.id);
       const durationsMap = await fetchDurationsForIds(ids);
       // assemble schedule
       SCHEDULE = items.map(it => ({ id: it.id, title: it.title, duration: durationsMap[it.id] || 0 }));
       playlistTotal = SCHEDULE.reduce((s,v)=>s+(v.duration||0),0);
-      if(playlistTotal === 0) throw new Error('Nie udało się obliczyć długości filmów. Upewnij się, że filmy nie są prywatne.');
+      if(playlistTotal === 0) throw new Error('Failed to calculate video length. Please make sure your videos are not private. Please contact the administrator to report the error.');
     }
 
     // Scheduler mapping
