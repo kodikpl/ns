@@ -26,15 +26,20 @@
     <div class="title" id="nowTitle"><a href="#" id="nowLink" target="_blank">Loading...</a></div>
     <div class="time" id="videoTime">--:-- / --:--</div>
   </div>
+<div class="controls" id="controls">
+<div style="display:flex;align-items:center;gap:8px">
+<label style="font-size:13px">Vol</label>
+<input id="vol" class="slider" type="range" min="0" max="100" value="80">
+</div>
+<div style="flex:1"></div>
 
-  <div class="controls" id="controls">
-    <div style="display:flex;align-items:center;gap:8px">
-      <label style="font-size:13px">Vol</label>
-      <input id="vol" class="slider" type="range" min="0" max="100" value="80">
-    </div>
-    <div style="flex:1"></div>
-    <button class="btn" id="fsBtn">Fullscreen</button>
-  </div>
+
+<!-- Info button: opens rentry in a new tab -->
+<button class="btn" id="infoBtn" title="Info" aria-label="Info">ⓘ</button>
+
+
+<button class="btn" id="fsBtn">Fullscreen</button>
+</div>
 
   <div class="loading" id="loading">Ładowanie listy odtwarzania…</div>
 
@@ -232,6 +237,11 @@
     });
 
     volSlider.addEventListener('input', ()=>{ if(player) player.setVolume(parseInt(volSlider.value,10)); });
+
+// Info button action
+infoBtn.addEventListener('click', ()=>{
+window.open('https://rentry.org/ytliveplayer-info', '_blank');
+});
 
     // Start: load playlist, then load YouTube API and start player
     (async function init(){
